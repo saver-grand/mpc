@@ -6,11 +6,14 @@ const fs = require("fs");
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Temp folder for HLS
+// Temporary HLS folder
 const HLS_DIR = path.join(__dirname, "hls");
 if (!fs.existsSync(HLS_DIR)) fs.mkdirSync(HLS_DIR);
 
-// Start FFmpeg process to restream DASH → HLS
+// Clean old files if restart
+fs.readdirSync(HLS_DIR).forEach(f => fs.unlinkSync(path.join(HLS_DIR, f)));
+
+// FFmpeg command
 const ffmpeg = spawn("ffmpeg", [
   "-y",
   "-loglevel", "error",
@@ -21,6 +24,7 @@ const ffmpeg = spawn("ffmpeg", [
   "-f", "hls",
   "-hls_time", "5",
   "-hls_playlist_type", "event",
+  "-hls_flags", "delete_segments",
   path.join(HLS_DIR, "playlist.m3u8")
 ]);
 
@@ -28,8 +32,19 @@ ffmpeg.stderr.on("data", (data) => {
   console.error("FFmpeg:", data.toString());
 });
 
-// Serve the HLS files
+ffmpeg.on("close", (code) => {
+  console.log("FFmpeg process exited with code", code);
+});
+
+// Serve HLS
 app.use("/pbarush", express.static(HLS_DIR));
+
+app.get("/", (req, res) => {
+  res.send(`
+    <h2>✅ PBA Rush Restream Running</h2>
+    <p>HLS Playlist: <a href="/pbarush/playlist.m3u8">/pbarush/playlist.m3u8</a></p>
+  `);
+});
 
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
