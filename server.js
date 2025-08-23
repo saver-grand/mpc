@@ -14,7 +14,8 @@ if (!fs.existsSync(HLS_DIR)) fs.mkdirSync(HLS_DIR);
 fs.readdirSync(HLS_DIR).forEach(f => fs.unlinkSync(path.join(HLS_DIR, f)));
 
 // FFmpeg command
-const ffmpeg = spawn("ffmpeg", [
+const ffmpegPath = require("ffmpeg-static");
+const ffmpeg = spawn(ffmpegPath, [
   "-y",
   "-loglevel", "error",
   "-decryption_key", "76dc29dd87a244aeab9e8b7c5da1e5f3:95b2f2ffd4e14073620506213b62ac82",
