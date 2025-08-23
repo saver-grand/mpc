@@ -1,3 +1,19 @@
+# Node modules
 node_modules/
+
+# Logs
 npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# Environment
 .env
+
+# HLS output
+hls/
+*.m3u8
+*.ts
+
+# OS junk
+.DS_Store
+Thumbs.db
