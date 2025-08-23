@@ -1,45 +1,51 @@
 const express = require("express");
-const ffmpegPath = require("ffmpeg-static");
 const ffmpeg = require("fluent-ffmpeg");
-const { PassThrough } = require("stream");
-
-ffmpeg.setFfmpegPath(ffmpegPath);
+const ffmpegPath = require("ffmpeg-static");
+const path = require("path");
+const fs = require("fs");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-/**
- * 🔴 Example: PBA Rush HD
- * Decrypts + restreams MPD → HLS
- */
-app.get("/pbarush/playlist.m3u8", (req, res) => {
-  res.setHeader("Content-Type", "application/vnd.apple.mpegurl");
+// 📂 HLS output folder
+const outputDir = path.join(__dirname, "hls");
+if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir);
 
-  const ffmpegStream = new PassThrough();
+// 📺 Stream configuration
+const streams = {
+  pbarush: {
+    url: "https://qp-pldt-live-grp-01-prod.akamaized.net/out/u/cg_pbarush_hd1.mpd",
+    key:
+      "76dc29dd87a244aeab9e8b7c5da1e5f3:95b2f2ffd4e14073620506213b62ac82"
+  }
+};
 
-  ffmpeg("https://qp-pldt-live-grp-01-prod.akamaized.net/out/u/cg_pbarush_hd1.mpd")
-    .inputOptions([
-      "-decryption_key", "76dc29dd87a244aeab9e8b7c5da1e5f3:95b2f2ffd4e14073620506213b62ac82"
-    ])
-    .addOptions([
-      "-c:v copy",
-      "-c:a copy",
-      "-f hls",
-      "-hls_time 5",
-      "-hls_list_size 6",
-      "-hls_flags delete_segments"
-    ])
-    .outputFormat("hls")
-    .pipe(ffmpegStream);
+// 🛠 Start FFmpeg restream
+Object.entries(streams).forEach(([name, cfg]) => {
+  const streamPath = path.join(outputDir, name);
+  if (!fs.existsSync(streamPath)) fs.mkdirSync(streamPath);
 
-  ffmpegStream.pipe(res);
+  console.log(`🎥 Starting restream: ${name}`);
+
+  ffmpeg(cfg.url)
+    .setFfmpegPath(ffmpegPath)
+    .addOption("-c", "copy") // no re-encode
+    .addOption("-bsf:a", "aac_adtstoasc")
+    .addOption("-f", "hls")
+    .addOption("-hls_time", "6")
+    .addOption("-hls_list_size", "6")
+    .addOption("-hls_flags", "delete_segments")
+    .output(path.join(streamPath, "playlist.m3u8"))
+    .on("start", (cmd) => console.log(`▶️ FFmpeg started: ${cmd}`))
+    .on("error", (err) => console.error(`❌ FFmpeg error [${name}]: ${err.message}`))
+    .run();
 });
 
+// 🌐 Serve HLS
+app.use("/hls", express.static(outputDir));
+
 app.get("/", (req, res) => {
-  res.send(`
-    <h2>✅ Restream Server Running</h2>
-    <p>Try: <a href="/pbarush/playlist.m3u8">/pbarush/playlist.m3u8</a></p>
-  `);
+  res.send("✅ Restream server is running.");
 });
 
 app.listen(PORT, () => {
