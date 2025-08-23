@@ -1,7 +1,7 @@
 {
-  "name": "mpc-restream",
+  "name": "restream-server",
   "version": "1.0.0",
-  "description": "Restream MPD ClearKey to HLS",
+  "description": "Restream MPD to HLS on Render",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
