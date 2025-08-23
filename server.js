@@ -1,52 +1,47 @@
 const express = require("express");
-const { spawn } = require("child_process");
-const path = require("path");
-const fs = require("fs");
+const ffmpegPath = require("ffmpeg-static");
+const ffmpeg = require("fluent-ffmpeg");
+const { PassThrough } = require("stream");
+
+ffmpeg.setFfmpegPath(ffmpegPath);
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Temporary HLS folder
-const HLS_DIR = path.join(__dirname, "hls");
-if (!fs.existsSync(HLS_DIR)) fs.mkdirSync(HLS_DIR);
+/**
+ * 🔴 Example: PBA Rush HD
+ * Decrypts + restreams MPD → HLS
+ */
+app.get("/pbarush/playlist.m3u8", (req, res) => {
+  res.setHeader("Content-Type", "application/vnd.apple.mpegurl");
 
-// Clean old files if restart
-fs.readdirSync(HLS_DIR).forEach(f => fs.unlinkSync(path.join(HLS_DIR, f)));
+  const ffmpegStream = new PassThrough();
 
-// FFmpeg command
-const ffmpegPath = require("ffmpeg-static");
-const ffmpeg = spawn(ffmpegPath, [
-  "-y",
-  "-loglevel", "error",
-  "-decryption_key", "76dc29dd87a244aeab9e8b7c5da1e5f3:95b2f2ffd4e14073620506213b62ac82",
-  "-i", "https://qp-pldt-live-grp-01-prod.akamaized.net/out/u/cg_pbarush_hd1.mpd",
-  "-c:v", "copy",
-  "-c:a", "copy",
-  "-f", "hls",
-  "-hls_time", "5",
-  "-hls_playlist_type", "event",
-  "-hls_flags", "delete_segments",
-  path.join(HLS_DIR, "playlist.m3u8")
-]);
+  ffmpeg("https://qp-pldt-live-grp-01-prod.akamaized.net/out/u/cg_pbarush_hd1.mpd")
+    .inputOptions([
+      "-decryption_key", "76dc29dd87a244aeab9e8b7c5da1e5f3:95b2f2ffd4e14073620506213b62ac82"
+    ])
+    .addOptions([
+      "-c:v copy",
+      "-c:a copy",
+      "-f hls",
+      "-hls_time 5",
+      "-hls_list_size 6",
+      "-hls_flags delete_segments"
+    ])
+    .outputFormat("hls")
+    .pipe(ffmpegStream);
 
-ffmpeg.stderr.on("data", (data) => {
-  console.error("FFmpeg:", data.toString());
+  ffmpegStream.pipe(res);
 });
-
-ffmpeg.on("close", (code) => {
-  console.log("FFmpeg process exited with code", code);
-});
-
-// Serve HLS
-app.use("/pbarush", express.static(HLS_DIR));
 
 app.get("/", (req, res) => {
   res.send(`
-    <h2>✅ PBA Rush Restream Running</h2>
-    <p>HLS Playlist: <a href="/pbarush/playlist.m3u8">/pbarush/playlist.m3u8</a></p>
+    <h2>✅ Restream Server Running</h2>
+    <p>Try: <a href="/pbarush/playlist.m3u8">/pbarush/playlist.m3u8</a></p>
   `);
 });
 
 app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
+  console.log(`🚀 Server running on http://localhost:${PORT}`);
 });
