@@ -63,6 +63,23 @@
       font-weight: bold;
       font-size: 15px;
     }
+
+    /* Adblock overlay */
+    #adblock-overlay {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0,0,0,0.95);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      color: red;
+      font-size: 22px;
+      font-weight: bold;
+      z-index: 9999;
+      text-align: center;
+      padding: 20px;
+    }
   </style>
 </head>
 <body>
@@ -73,6 +90,11 @@
   </select>
   <button id="createBtn">Add Code</button>
   <div id="message"></div>
+
+  <div id="adblock-overlay">
+    🚫 Access Denied <br><br>
+    Please disable your DNS ad-blocker to use this website.
+  </div>
 
   <!-- Firebase Script -->
   <script type="module">
@@ -89,7 +111,7 @@
       apiKey: "AIzaSyBFTwwwFdPdWkMBLuPgp4X4eISjq1G_I5k",  
       authDomain: "honor-tv.firebaseapp.com",  
       projectId: "honor-tv",  
-      storageBucket: "honor-tv.firebasestorage.app",  
+      storageBucket: "honor-tv.appspot.com",  
       messagingSenderId: "558886563379",  
       appId: "1:558886563379:web:c4baa6df86210da2737d46"  
     };  
@@ -141,6 +163,25 @@
     document.getElementById("createBtn").addEventListener("click", createCode);
     document.addEventListener("keydown", (e) => {
       if (e.key === "Enter") createCode();
+    });
+  </script>
+
+  <!-- Better Adblock DNS Detection -->
+  <script>
+    function detectAdblockDNS() {
+      return new Promise((resolve) => {
+        let testScript = document.createElement("script");
+        testScript.src = "https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js";
+        testScript.onerror = () => resolve(true);   // blocked
+        testScript.onload = () => resolve(false);   // allowed
+        document.body.appendChild(testScript);
+      });
+    }
+
+    detectAdblockDNS().then(blocked => {
+      if (blocked) {
+        document.getElementById("adblock-overlay").style.display = "flex";
+      }
     });
   </script>
 </body>
